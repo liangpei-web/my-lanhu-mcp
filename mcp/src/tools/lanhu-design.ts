@@ -3,24 +3,29 @@ import { join, resolve } from "node:path";
 import * as z from "zod/v4";
 import {
   LanhuClient,
+  analyzeDesignForCocos,
   analyzeDesignWithInclude,
   createLanhuEphemeralWorkDir,
   DEFAULT_ANALYZE_INCLUDE,
   downloadDesignSlices,
   extractDesignTokens,
+  formatCocosAnalyzeText,
   getSketchJson,
   getSlices,
   listDesigns,
   mapConcurrent,
   parseLanhuUrl,
   persistAnalyzeArtifacts,
+  persistCocosArtifacts,
   pickDesigns,
   removeLanhuEphemeralWorkDir,
   resolveDesignOutputDir,
   SliceNamesNotFoundError,
+  type AnalyzeCocosResult,
   type AnalyzeDesignResult,
   type AnalyzeArtifactsPaths,
   type AnalyzeInclude,
+  type CocosArtifactsPaths,
   type ConvertSketchResult,
   type ConvertLanhuSchemaResult,
   type LanhuDesignSummary,
@@ -35,8 +40,10 @@ import {
 import { type McpConfig, requireLanhuCookie } from "../config.js";
 import { createToolError, createToolResult, type ToolContent } from "../result.js";
 import {
+  LANHU_DESIGN_COCOS_MIRROR_KEY,
   LANHU_DESIGN_LIST_MIRROR_KEY,
   LANHU_DESIGN_SLICES_MIRROR_KEY,
+  buildToolResultText,
 } from "../structured-content-mirror.js";
 import { resolveDesignSelector } from "./resolve-design-selector.js";
 import { buildSliceInventoryRows, formatSliceInventorySection } from "../slices-inventory-table.js";
@@ -250,21 +257,24 @@ export function registerLanhuDesignTool(server: McpServer, config: McpConfig): v
     "lanhu_design",
     {
       description:
-        "蓝湖设计稿统一工具。支持列出画板、分析还原、提取设计令牌（tokens）、获取切图信息。\n\n" +
+        "蓝湖设计稿统一工具。支持列出画板、分析还原、提取设计令牌（tokens）、获取切图信息、生成 Cocos 节点树。\n\n" +
         "推荐流程：detailDetach（含 image_id）可直接 analyze；stage 全项目则 mode=list → design_names → analyze。\n\n" +
         "模式说明：\n" +
         "  - list：列出项目内全部设计图\n" +
         "  - analyze：分析设计稿，输出 HTML/CSS、tokens、图层等，并落盘到 data/lanhu_designs/（与 REST analyze 一致）\n" +
         "  - slices：下载 B 套切图到 `{output_dir}/assets/slices/`，并输出切图清单表（蓝湖文件名/尺寸/说明/修改后名称）\n" +
-        "  - tokens：仅提取设计令牌\n\n" +
+        "  - tokens：仅提取设计令牌\n" +
+        "  - cocos：蓝湖效果图 + 本地切图目录 → Cocos 2.x / 3.x 节点 JSON（不是 .prefab）\n\n" +
         "design_names：URL 含 image_id 或 list 仅 1 张时可省略；stage 多稿时必填（名称/序号/id/all）。\n\n" +
         "slices：下载后请读清单表补全「说明」「修改后名称」，再 mv 重命名并改引用（无需再次调用 MCP）。\n" +
         "slices 参数：slice_format（默认 png）、slice_scale（默认 2x）、slice_names（默认全部）、output_dir（业务项目路径须显式传入）。\n\n" +
+        "cocos：必须传 slice_dir（你本地已有的切图目录，不从蓝湖下载）。按尺寸为主、名字为辅匹配 Sprite；歧义看预览图确认。\n" +
+        "cocos 参数：cocos_version（2.x / 3.x / both，默认 both）、unit_scale（设计像素→Cocos 单位，默认 1）、local_slice_scale（切图像素/设计像素，默认自动识别）。\n\n" +
         "analyze 选项：workflow_guide 默认为 true，且 include 含 html 时会在文本中附带 STEP 1~5 还原指引。",
       inputSchema: {
         url: z.string().min(1).describe("蓝湖项目链接（stage 或 detailDetach 页面 URL）。"),
         mode: z
-          .enum(["list", "analyze", "slices", "tokens"])
+          .enum(["list", "analyze", "slices", "tokens", "cocos"])
           .default("analyze")
           .describe("操作模式。默认 analyze。"),
         design_names: z
@@ -308,9 +318,30 @@ export function registerLanhuDesignTool(server: McpServer, config: McpConfig): v
           .string()
           .optional()
           .describe(
-            "仅 slices：落盘根目录；文件写入 {output_dir}/assets/slices/。" +
+            "slices：落盘根目录，文件写入 {output_dir}/assets/slices/。" +
+              "cocos：节点 JSON 落盘根目录。" +
               "未传时使用 LANHU_DATA_DIR/lanhu_designs/{pid}/{designId}_{slug}/；传 output_dir 时不追加 designId 层。",
           ),
+        slice_dir: z
+          .string()
+          .optional()
+          .describe(
+            "仅 cocos：本地切图目录（已有 PNG 等，不从蓝湖下载）。必填。",
+          ),
+        cocos_version: z
+          .enum(["2.x", "3.x", "both"])
+          .optional()
+          .describe("仅 cocos：生成哪份节点 JSON。默认 both。"),
+        unit_scale: z
+          .number()
+          .positive()
+          .optional()
+          .describe("仅 cocos：设计像素 × unit_scale = Cocos 单位。默认 1。设计稿 750、游戏 375 时传 0.5。"),
+        local_slice_scale: z
+          .number()
+          .positive()
+          .optional()
+          .describe("仅 cocos：切图像素 / 设计像素。不传则按文件尺寸自动识别（常见 2）。"),
       },
     },
     async ({
@@ -324,6 +355,10 @@ export function registerLanhuDesignTool(server: McpServer, config: McpConfig): v
       slice_scale,
       slice_names,
       output_dir,
+      slice_dir,
+      cocos_version,
+      unit_scale,
+      local_slice_scale,
     }) => {
       try {
         const client = createClient(config);
@@ -540,6 +575,159 @@ export function registerLanhuDesignTool(server: McpServer, config: McpConfig): v
             design_names_resolved_from: selection.resolvedFrom,
             total: targetDesigns.length,
           });
+        }
+
+        if (mode === "cocos") {
+          const sliceDir = slice_dir?.trim();
+          if (!sliceDir) {
+            return createToolResult(
+              "mode=cocos 需要 slice_dir（本地切图目录，不从蓝湖下载）。",
+              {
+                status: "error",
+                hint: "传入游戏工程里已有的切图路径，例如 assets/ui/home。",
+              },
+              true,
+            );
+          }
+
+          const warning =
+            targetDesigns.length > 1
+              ? `多画板共用同一 slice_dir，请确认切图目录对应这些画板（${targetDesigns.map((d) => d.name).join("、")}）`
+              : undefined;
+
+          const analyzed = await mapConcurrent(
+            targetDesigns,
+            (design) =>
+              analyzeDesignForCocos(client, { teamId, projectId }, design, {
+                sliceDir,
+                cocosVersion: cocos_version,
+                unitScale: unit_scale,
+                localSliceScale: local_slice_scale,
+              }),
+            5,
+          );
+
+          const results: AnalyzeCocosResult[] = [];
+          const artifactPaths: Array<CocosArtifactsPaths | undefined> = [];
+          for (let i = 0; i < analyzed.length; i++) {
+            const entry = analyzed[i]!;
+            const design = targetDesigns[i]!;
+            if (entry.status === "rejected") {
+              artifactPaths.push(undefined);
+              results.push({
+                design,
+                tree: {
+                  source: "ps",
+                  boardName: design.name,
+                  boardWidth: 0,
+                  boardHeight: 0,
+                  root: {
+                    id: "",
+                    name: design.name,
+                    layerPath: design.name,
+                    layerType: "board",
+                    kind: "node",
+                    rect: { left: 0, top: 0, width: 0, height: 0 },
+                    lanhuHasImage: false,
+                    children: [],
+                  },
+                  warnings: [],
+                },
+                documents: [],
+                warnings: [entry.reason instanceof Error ? entry.reason.message : String(entry.reason)],
+              });
+              continue;
+            }
+            const result = entry.value;
+            const artifacts =
+              config.persistArtifacts
+                ? await persistCocosArtifacts(design, result, {
+                    dataDir: config.dataDir,
+                    projectId,
+                    outputDir: output_dir,
+                  }).catch((error: unknown) => {
+                    const message = error instanceof Error ? error.message : String(error);
+                    result.warnings.push(`Cocos 产物落盘失败: ${message}`);
+                    return undefined;
+                  })
+                : undefined;
+            artifactPaths.push(artifacts);
+            results.push(result);
+          }
+
+          const content: ToolContent[] = [];
+          for (const result of results) {
+            if (result.previewImage?.base64) {
+              content.push({
+                type: "image",
+                data: result.previewImage.base64,
+                mimeType: result.previewImage.contentType || "image/png",
+              });
+            }
+          }
+
+          const summaryParts: string[] = [];
+          if (warning) summaryParts.push(warning);
+          const persistBlock = formatPersistLocationBlock(
+            config.persistArtifacts,
+            results.flatMap((result, index) => {
+              const dir = artifactPaths[index]?.outputDir?.trim();
+              if (!dir) return [];
+              const files = [
+                artifactPaths[index]?.layout2x,
+                artifactPaths[index]?.layout3x,
+                artifactPaths[index]?.layoutText,
+              ].filter(Boolean);
+              return [
+                {
+                  label: result.design.name,
+                  dir,
+                  note: files.length ? files.map((f) => f!.split(/[\\/]/).pop()).join(", ") : undefined,
+                },
+              ];
+            }),
+          );
+          if (persistBlock) summaryParts.push(persistBlock.trim());
+
+          for (const result of results) {
+            if (results.length > 1) {
+              summaryParts.push("");
+              summaryParts.push(`======== ${result.design.name} ========`);
+            }
+            summaryParts.push(formatCocosAnalyzeText(result));
+          }
+
+          const structured = {
+            status: "success",
+            mode: "cocos",
+            persist_artifacts: config.persistArtifacts,
+            project_name: listResult.projectName ?? null,
+            design_names_resolved_from: selection.resolvedFrom,
+            slice_dir: sliceDir,
+            cocos_version: cocos_version ?? "both",
+            unit_scale: unit_scale ?? 1,
+            warning,
+            designs: results.map((result, index) => ({
+              name: result.design.name,
+              id: result.design.id,
+              match_stats: result.match?.stats ?? null,
+              slice_scale: result.match?.sliceScale ?? null,
+              review: result.documents[0]?.review ?? [],
+              unused_slices: result.documents[0]?.unusedSlices ?? [],
+              documents: result.documents,
+              artifacts: artifactPaths[index] ?? null,
+              warnings: result.warnings,
+            })),
+          };
+
+          const summaryText = summaryParts.join("\n").trim();
+          content.unshift({
+            type: "text",
+            text: config.persistArtifacts
+              ? summaryText
+              : buildToolResultText(summaryText, structured, LANHU_DESIGN_COCOS_MIRROR_KEY),
+          });
+          return { content, structuredContent: structured };
         }
 
         // analyze

@@ -6,6 +6,25 @@
 
 ## [Unreleased]
 
+### 概述
+
+`lanhu_design` 新增 **`mode=cocos`**：蓝湖效果图 + 本地切图目录 → Cocos Creator 2.x / 3.x 节点 JSON（不是 `.prefab`）。
+
+### `@lanhu/core`
+
+- 新增 `cocos/`：Sketch → 节点树、本地切图扫描、尺寸优先匹配、2.x/3.x emit
+- 新增 `pipeline/analyze-cocos.ts`、`persist/cocos-artifacts.ts`
+- 落盘：`{slug}.cocos-layout-2x.json` / `{slug}.cocos-layout-3x.json` / `{slug}.cocos.txt`
+
+### `@lanhu/mcp`
+
+- `lanhu_design` 增加 mode `cocos`；必填 `slice_dir`；可选 `cocos_version`（默认 both）、`unit_scale`、`local_slice_scale`、`output_dir`
+
+### 升级注意
+
+1. `npm run build:mcp` 后重启 MCP
+2. 切图路径由调用方提供，不会从蓝湖下载 PNG
+
 ---
 
 ## [0.1.5] — 2026-08-17

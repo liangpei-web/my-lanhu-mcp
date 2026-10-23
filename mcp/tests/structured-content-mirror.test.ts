@@ -10,12 +10,17 @@ import {
 
 describe("structured-content-mirror", () => {
   it("lists mirror keys", () => {
-    expect(STRUCTURED_CONTENT_MIRROR_KEYS).toEqual(["lanhu_design:list", "lanhu_design:slices"]);
+    expect(STRUCTURED_CONTENT_MIRROR_KEYS).toEqual([
+      "lanhu_design:list",
+      "lanhu_design:slices",
+      "lanhu_design:cocos",
+    ]);
   });
 
   it("mirrors only registered keys", () => {
     expect(shouldMirrorStructuredContent("lanhu_design:list")).toBe(true);
     expect(shouldMirrorStructuredContent("lanhu_design:slices")).toBe(true);
+    expect(shouldMirrorStructuredContent("lanhu_design:cocos")).toBe(true);
     expect(shouldMirrorStructuredContent("lanhu_design:analyze")).toBe(false);
     expect(shouldMirrorStructuredContent("lanhu_page:list")).toBe(false);
   });

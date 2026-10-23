@@ -69,6 +69,7 @@ lanhu-node/
 | Sketch fallback、tokens、图层树 | `transform/convert-sketch.ts` 等 | analyze `include` |
 | B 套切图元数据 | `designs.ts` · `getSlices` | `/api/designs/slices`、`mode=slices` |
 | 一键 analyze + 落盘 | `pipeline/analyze-design.ts` | `/api/designs/analyze` → `data/lanhu_designs/` |
+| Cocos 节点树（2.x / 3.x JSON） | `cocos/`、`pipeline/analyze-cocos.ts` | MCP `lanhu_design` `mode=cocos` |
 
 **`lanhu_design` 两条内容链路**
 
@@ -92,7 +93,7 @@ lanhu-node/
 
 | 类型 | 名称 |
 |------|------|
-| Tool | `lanhu_design`（list / analyze / slices / tokens） |
+| Tool | `lanhu_design`（list / analyze / slices / tokens / cocos） |
 | Tool | `lanhu_page`（原型） |
 | Resource | `project-designs`、单稿 design |
 | Prompt | `frontend-dev`、`design-review` |

@@ -82,6 +82,7 @@ Cursor 里 Agent 可通过 Tool / Resource / Prompt 访问蓝湖资源：
 | `analyze` | 深度分析（HTML/CSS、tokens、图层等） | 有条件（见下） | **是** |
 | `slices` | 下载 B 套切图到 `{root}/assets/slices/`（默认 png@2x） | 有条件（见下） | |
 | `tokens` | 仅 Design Tokens | 有条件（见下） | |
+| `cocos` | 效果图 + 本地切图 → Cocos 2.x / 3.x 节点 JSON（不是 .prefab） | 有条件（见下） | |
 
 **`design_names` 何时可省略**
 
@@ -117,6 +118,16 @@ Cursor 里 Agent 可通过 Tool / Resource / Prompt 访问蓝湖资源：
 
 ```json
 { "url": "...", "mode": "slices", "design_names": "首页" }
+```
+
+```json
+{
+  "url": "...",
+  "mode": "cocos",
+  "design_names": "首页",
+  "slice_dir": "D:/game/assets/ui/home",
+  "cocos_version": "both"
+}
 ```
 
 不传 `mode` 时等价于 `"analyze"`。
@@ -170,6 +181,24 @@ Cursor 里 Agent 可通过 Tool / Resource / Prompt 访问蓝湖资源：
 无 `html` 时即使 `workflow_guide: true` 也不会插入 guide。
 
 返回的 `structuredContent.workflow_guide` 表示**本次是否实际附带了** guide。
+
+---
+
+### 4.4 `mode=cocos`（效果图 → Cocos 节点树）
+
+蓝湖只提供效果图（层级、位置、文案）；**切图必须是你本地已有的目录**，不会从蓝湖下载 PNG。输出是 `lanhu-cocos-layout` JSON，**不是** `.prefab`。
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `slice_dir` | 是 | 本地切图目录（扫描 png/jpg/webp/gif，忽略 `.meta`） |
+| `cocos_version` | 否 | `2.x` / `3.x` / `both`，默认 `both` |
+| `unit_scale` | 否 | 设计像素 × 该值 = Cocos 单位，默认 `1`（设计稿 750、游戏 375 时传 `0.5`） |
+| `local_slice_scale` | 否 | 切图像素 / 设计像素；不传则按文件尺寸自动识别 |
+| `output_dir` | 否 | JSON 落盘根目录；未传则 `data/lanhu_designs/{pid}/{designId}_{slug}/` |
+
+匹配规则：尺寸为主、名字为辅。`high` 可直接用；`medium` / `low` / 无候选会出现在「需要看图确认」里，对照预览图改 `spriteFrame`。
+
+坐标约定：锚点 `(0.5, 0.5)`，y 轴向上，`position` 相对父节点中心。落地时用编辑器脚本读 `root` 建节点，SpriteFrame 走相对 `slice_dir` 的路径（资源须已导入工程）。
 
 ---
 

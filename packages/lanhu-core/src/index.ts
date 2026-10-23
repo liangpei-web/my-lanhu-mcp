@@ -59,6 +59,60 @@ export {
   resolveAnalyzeInclude,
 } from "./pipeline/analyze-design.js";
 export type { AnalyzeInclude, AnalyzeDesignSliceResult } from "./pipeline/analyze-include.js";
+export {
+  analyzeDesignForCocos,
+  buildCocosFromSketch,
+  formatCocosAnalyzeText,
+  resolveCocosVersions,
+} from "./pipeline/analyze-cocos.js";
+export type {
+  AnalyzeCocosOptions,
+  AnalyzeCocosResult,
+  BuildCocosFromSketchOptions,
+  BuildCocosFromSketchResult,
+  CocosEngineTarget,
+} from "./pipeline/analyze-cocos.js";
+export { persistCocosArtifacts } from "./persist/cocos-artifacts.js";
+export type {
+  CocosArtifactsPaths,
+  PersistCocosArtifactsOptions,
+} from "./persist/cocos-artifacts.js";
+export {
+  buildCocosLayoutDocument,
+  formatCocosLayoutText,
+  toCocosTransform,
+} from "./cocos/emit.js";
+export type {
+  CocosLayoutDocument,
+  CocosNodeSpec,
+  CocosTransform,
+  CocosVersion,
+} from "./cocos/emit.js";
+export {
+  buildLayoutTree,
+  normalizeColor,
+  walkLayoutNodes,
+} from "./cocos/layout-tree.js";
+export type {
+  CocosLabelInfo,
+  CocosMatchConfidence,
+  CocosNodeKind,
+  CocosSliceCandidate,
+  CocosSpriteInfo,
+  DesignRect,
+  LayoutNode,
+  LayoutTree,
+} from "./cocos/layout-tree.js";
+export { scanLocalSlices } from "./cocos/local-slices.js";
+export type { LocalSliceFile, ScanLocalSlicesResult } from "./cocos/local-slices.js";
+export { detectSliceScale, matchLocalSlices, normalizeSliceName } from "./cocos/slice-match.js";
+export type {
+  MatchLocalSlicesOptions,
+  MatchLocalSlicesResult,
+  SliceScaleDetection,
+} from "./cocos/slice-match.js";
+export { readImageSize } from "./cocos/image-size.js";
+export type { ImageSize } from "./cocos/image-size.js";
 export { buildQuery, buildPrototypeDocumentUrl, parseLanhuUrl } from "./lanhu/parse-url.js";
 export {
   convertLanhuSchema,

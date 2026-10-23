@@ -15,6 +15,7 @@ TypeScript 实现的蓝湖 MCP 服务器：`lanhu_design` 分析 UI 设计稿并
 - **列表与选稿**：按项目 URL 列出全部画板，支持画板名 / 序号 / id 选取
 - **深度分析**：Schema（DDS）或 Sketch fallback → **HTML+CSS**、预览图、Design Tokens、图层树、布局摘要
 - **切图**：`mode=slices` 下载设计师登记的 **B 套**切图（默认 png@2x）到本地；analyze 里的 `include: slices` 只是 A 套 URL mapping，不会下 PNG
+- **Cocos 节点树**：`mode=cocos` 用蓝湖效果图 + 你提供的本地切图目录，生成 2.x / 3.x 节点 JSON（不是 `.prefab`）
 - **还原工作流**：analyze 默认附带 STEP 1~5 前端还原指引（可关闭省 token）
 
 ### 📋 原型 / PRD（Axure）
@@ -77,7 +78,7 @@ npm run build:mcp                 # 或 npm run build
 
 | 类型 | 名称 | 说明 |
 |------|------|------|
-| Tool | `lanhu_design` | 设计稿：list / analyze / slices / tokens |
+| Tool | `lanhu_design` | 设计稿：list / analyze / slices / tokens / cocos |
 | Tool | `lanhu_page` | 原型 / PRD 页面列表与分析 |
 | Resource | `project-designs` | 只读：项目内设计稿列表 |
 | Resource | `design` | 只读：单张设计稿 JSON |
@@ -119,6 +120,17 @@ https://lanhuapp.com/web/#/item/project/detailDetach?pid=xxx&tid=xxx&image_id=xx
 
 常用可选参数：slice_format（png / webp / svg，默认 png）、slice_scale（默认 2x）、slice_names（不传则全部）。
 
+
+### 生成 Cocos 节点树（2.x / 3.x）
+
+蓝湖只负责效果图；切图用你本地目录，不从蓝湖下载。输出是节点 JSON，不是 `.prefab`。
+
+```
+请用蓝湖效果图生成 Cocos 节点树，切图在 D:\game\assets\ui\home
+https://lanhuapp.com/web/#/item/project/detailDetach?pid=xxx&tid=xxx&image_id=xxx
+```
+
+Agent 应调用 `lanhu_design`，`mode: "cocos"`，`slice_dir` 必填。`cocos_version` 默认 `both`（同时出 2.x / 3.x JSON）。
 
 ### 分析 Axure 原型
 

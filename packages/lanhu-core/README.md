@@ -24,7 +24,7 @@ npm run check -w @lanhu/core
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│ 编排层   pipeline/*  analyze-design / analyze-include        │
+│ 编排层   pipeline/*  analyze-design / analyze-include / analyze-cocos │
 ├─────────────────────────────────────────────────────────────┤
 │ 蓝湖层   lanhu/*  client / parse-url / designs / pages       │
 │          pick-design / design-sectors                        │
@@ -58,10 +58,18 @@ packages/lanhu-core/
 │   ├── pipeline/
 │   │   ├── analyze-design.ts    # analyzeDesign / analyzeDesignBatch
 │   │   ├── analyze-include.ts   # include 分支（MCP / HTTP 共用）
+│   │   ├── analyze-cocos.ts     # 效果图 + 本地切图 → Cocos 节点 JSON
 │   │   └── concurrency.ts       # 批量并发（默认 5）
+│   ├── cocos/
+│   │   ├── layout-tree.ts       # Sketch → 引擎无关节点树
+│   │   ├── local-slices.ts      # 扫描用户切图目录
+│   │   ├── slice-match.ts       # 尺寸为主匹配 Sprite
+│   │   ├── emit.ts              # 2.x / 3.x 节点 JSON
+│   │   └── image-size.ts        # PNG/JPEG/WebP/GIF 文件头尺寸
 │   ├── persist/
 │   │   ├── data-dir.ts          # LANHU_DATA_DIR、安全文件名
-│   │   └── analyze-artifacts.ts # 落盘 html / mapping / 预览图等
+│   │   ├── analyze-artifacts.ts # 落盘 html / mapping / 预览图等
+│   │   └── cocos-artifacts.ts   # 落盘 cocos-layout JSON
 │   └── transform/
 │       ├── convert-schema.ts    # Schema → HTML + mapping（A 套入口）
 │       ├── schema-to-html.ts    # DDS 树 → HTML 字符串
@@ -182,6 +190,16 @@ packages/lanhu-core/
 | `analyzeDesignBatch(options)` | 多稿并发（`pipeline/concurrency.ts`） |
 
 `AnalyzeDesignOptions`：`url`、`design?`、`withSlices?`、`cookie`、`ddsCookie`。
+
+### `pipeline/analyze-cocos.ts` + `cocos/`
+
+蓝湖效果图提供层级/坐标/文案，**切图目录由调用方提供**（不下载蓝湖 PNG）。输出节点描述 JSON，不是 `.prefab`。
+
+| 导出 | 用途 |
+|------|------|
+| `analyzeDesignForCocos(client, ctx, design, options)` | 拉 Sketch → 扫 `sliceDir` → 匹配 → 2.x/3.x JSON |
+| `buildCocosFromSketch(sketch, options)` | 纯转换（已有 Sketch / 切图列表时） |
+| `buildLayoutTree` / `matchLocalSlices` / `buildCocosLayoutDocument` | 分步：树 / 匹配 / emit |
 
 ### `transform/` — 本地处理（一般不访问蓝湖）
 

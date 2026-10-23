@@ -8,12 +8,12 @@
 
 ## 1. 定稿结论
 
-**设计稿阶段采用：1 个 Tool + 4 个 `mode`，不拆成 4 个独立 Tool。**
+**设计稿阶段采用：1 个 Tool + 多个 `mode`，不拆成独立 Tool。**
 
 | 层级 | 选型 |
 |------|------|
 | 主 Tool | `lanhu_design` |
-| mode | `list` \| `analyze` \| `slices` \| `tokens` |
+| mode | `list` \| `analyze` \| `slices` \| `tokens` \| `cocos` |
 | 辅助 | Resource `project-designs`、单稿 `design`；Prompt `frontend-dev` / `design-review` |
 | 业务实现 | 薄壳调 `@lanhu/core`，不复制 `server-nest` 分步逻辑 |
 | 已实现 Tool | `lanhu_design`（设计稿）、`lanhu_page`（原型） |

@@ -37,6 +37,9 @@ REST `POST /api/designs/analyze` 在 env 为 `false` 时忽略 body `persistArti
   {slug}.layer-annotations.json      # 每层绝对定位 CSS（与标注同源）
   {slug}.warnings.json               # 有 warnings 时
   {slug}.slices.json                 # with_slices 时的 B 套元数据（非 PNG）
+  {slug}.cocos-layout-2x.json        # mode=cocos：2.x 节点描述（不是 .prefab）
+  {slug}.cocos-layout-3x.json        # mode=cocos：3.x 节点描述
+  {slug}.cocos.txt                   # mode=cocos：给 AI 读的节点树摘要
   assets/slices/                     # mode=slices 下载的 B 套切图（可选 output_dir 改根）
     title.png
     …
